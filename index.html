@@ -1,1 +1,169 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Gemini Chat Test</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: stretch;
+      min-height: 100vh;
+      background: #0f172a;
+      color: #e5e7eb;
+    }
+    .chat {
+      width: 100%;
+      max-width: 600px;
+      margin: 16px;
+      background: #020617;
+      border-radius: 12px;
+      border: 1px solid #1e293b;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .header {
+      padding: 12px 16px;
+      border-bottom: 1px solid #1f2937;
+      font-weight: 600;
+      font-size: 14px;
+      background: #030712;
+    }
+    .messages {
+      flex: 1;
+      padding: 12px 16px;
+      overflow-y: auto;
+      font-size: 14px;
+    }
+    .msg {
+      margin-bottom: 8px;
+      line-height: 1.4;
+    }
+    .msg.user {
+      color: #93c5fd;
+    }
+    .msg.bot {
+      color: #bbf7d0;
+    }
+    .msg.error {
+      color: #fecaca;
+    }
+    .input-row {
+      display: flex;
+      gap: 8px;
+      padding: 12px 16px;
+      border-top: 1px solid #1f2937;
+      background: #020617;
+    }
+    input[type="text"] {
+      flex: 1;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid #374151;
+      background: #020617;
+      color: inherit;
+      outline: none;
+      font-size: 14px;
+    }
+    input[type="text"]::placeholder {
+      color: #6b7280;
+    }
+    button {
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid #4b5563;
+      background: #1f2937;
+      color: inherit;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+  </style>
+</head>
+<body>
+  <div class="chat">
+    <div class="header">Gemini Chat (Vercel test)</div>
+    <div id="messages" class="messages"></div>
+    <form id="form" class="input-row">
+      <input
+        id="input"
+        type="text"
+        autocomplete="off"
+        placeholder="Ask something..."
+      />
+      <button id="send" type="submit">Send</button>
+    </form>
+  </div>
+
+  <script>
+    const messagesEl = document.getElementById('messages');
+    const form = document.getElementById('form');
+    const input = document.getElementById('input');
+    const sendBtn = document.getElementById('send');
+
+    const SYSTEM_PROMPT = 'You are a concise, friendly AI assistant embedded in a small web app. Keep answers short and clear.';
+
+    // Local in-memory history; you can later replace with localStorage
+    const history = [
+      { role: 'system', content: SYSTEM_PROMPT }
+    ];
+
+    function addMessage(role, text, extraClass = '') {
+      const div = document.createElement('div');
+      div.className = `msg ${role} ${extraClass}`;
+      div.textContent = (role === 'user' ? 'You: ' : 'Bot: ') + text;
+      messagesEl.appendChild(div);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+
+      history.push({ role: 'user', content: text });
+      addMessage('user', text);
+      input.value = '';
+      input.focus();
+
+      sendBtn.disabled = true;
+      addMessage('bot', 'Thinking...', 'pending');
+      const pendingEl = messagesEl.lastChild;
+
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: history })
+        });
+
+        const data = await res.json();
+        messagesEl.removeChild(pendingEl);
+
+        if (!res.ok || data.error) {
+          addMessage('bot', data.error || 'Error from server', 'error');
+          return;
+        }
+
+        const reply = data.reply || '(no reply)';
+        history.push({ role: 'assistant', content: reply });
+        addMessage('bot', reply);
+      } catch (err) {
+        messagesEl.removeChild(pendingEl);
+        addMessage('bot', 'Network error: ' + err.message, 'error');
+      } finally {
+        sendBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

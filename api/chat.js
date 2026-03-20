@@ -6,42 +6,42 @@ export default async function handler(req, res) {
 
   try {
     const { messages } = req.body;
-
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.MISTRAL_API_KEY;
 
     if (!apiKey) {
-      res.status(500).json({ error: 'Missing GEMINI_API_KEY' });
+      res.status(500).json({ error: 'Missing MISTRAL_API_KEY environment variable' });
       return;
     }
 
-    const prompt = messages
-      .map(m => `${m.role}: ${m.content}`)
-      .join('\n');
+    // Mistral API expects messages in the format: [{role: "user", content: "..."}, ...]
+    // The incoming messages from the frontend already match this.
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [{ text: prompt }]
-            }
-          ]
-        })
-      }
-    );
+    const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: 'mistral-small-latest',
+        messages: messages
+      })
+    });
 
     const data = await response.json();
 
-    const reply =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text ||
-      'No response from model';
+    if (!response.ok) {
+      return res.status(response.status).json({
+        error: data.message || `Mistral API error: ${response.statusText}`
+      });
+    }
+
+    const reply = data.choices?.[0]?.message?.content || 'No response from model';
 
     res.status(200).json({ reply });
 
   } catch (err) {
+    console.error('API Error:', err);
     res.status(500).json({ error: err.message });
   }
-      }
+}

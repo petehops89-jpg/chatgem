@@ -1,0 +1,13 @@
+{
+  "name": "mistral-chat-test",
+  "version": "1.0.0",
+  "description": "Simple chat interface for Mistral API via Vercel",
+  "main": "api/chat.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "vercel dev"
+  },
+  "license": "MIT"
+}
